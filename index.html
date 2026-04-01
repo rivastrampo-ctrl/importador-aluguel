@@ -213,7 +213,6 @@
   }
   .badge-800 { background: #D6E4F7; color: #185FA5; }
   .badge-801 { background: var(--verde-claro); color: #375623; }
-  .badge-802 { background: #FFF2CC; color: #7F6000; }
 
   table.tabela-resultado {
     width: 100%;
@@ -288,6 +287,59 @@
   .btn-novo:hover { background: var(--cinza); }
 
   .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Toggle switch */
+  .toggle-grupo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+  }
+  .toggle-grupo .toggle-label {
+    font-size: 13px;
+    color: var(--texto-muted);
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .toggle-grupo .toggle-label.ativo { color: var(--azul-escuro); font-weight: 600; }
+  .switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--verde);
+    border-radius: 26px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .switch .slider::before {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .switch input:checked + .slider { background: var(--azul); }
+  .switch input:checked + .slider::before { transform: translateX(22px); }
+  .toggle-desc {
+    font-size: 12px;
+    color: var(--texto-muted);
+    margin-top: 4px;
+    line-height: 1.5;
+    padding: 8px 12px;
+    background: #fffbe6;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+  }
 
   .tag-empresa {
     display: inline-flex;
@@ -364,9 +416,29 @@
     </div>
   </div>
 
-  <div class="card" id="card-processar">
+  <div class="card" id="card-opcoes">
     <div class="card-header">
       <div class="num">2</div>
+      <h2>Opções de geração</h2>
+    </div>
+    <div class="card-body">
+      <div class="toggle-grupo">
+        <span class="toggle-label ativo" id="lbl-agrupado">Agrupado</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle-modo" />
+          <span class="slider"></span>
+        </label>
+        <span class="toggle-label" id="lbl-separado">Separado</span>
+      </div>
+      <div class="toggle-desc" id="toggle-desc">
+        📦 <strong>Modo Agrupado:</strong> Mesmo CPF + mesmo Acumulador → os valores serão <strong>somados</strong> em 1 único lançamento.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="card-processar">
+    <div class="card-header">
+      <div class="num">3</div>
       <h2>Processar e gerar arquivo .txt</h2>
     </div>
     <div class="card-body">
@@ -380,7 +452,7 @@
   <div id="resultado">
     <div class="card">
       <div class="card-header">
-        <div class="num">3</div>
+        <div class="num">4</div>
         <h2>Resultado</h2>
       </div>
       <div class="card-body">
@@ -418,8 +490,24 @@ const spinner = document.getElementById('spinner');
 const alertaErro = document.getElementById('alerta-erro');
 const alertaInfo = document.getElementById('alerta-info');
 const resultado = document.getElementById('resultado');
+const toggleModo = document.getElementById('toggle-modo');
+const lblAgrupado = document.getElementById('lbl-agrupado');
+const lblSeparado = document.getElementById('lbl-separado');
+const toggleDesc = document.getElementById('toggle-desc');
 
 let arquivoAtual = null;
+
+// Toggle event
+toggleModo.addEventListener('change', () => {
+  const separado = toggleModo.checked;
+  lblAgrupado.classList.toggle('ativo', !separado);
+  lblSeparado.classList.toggle('ativo', separado);
+  if (separado) {
+    toggleDesc.innerHTML = '📋 <strong>Modo Separado:</strong> Cada linha da planilha gera um lançamento <strong>individual</strong> no arquivo .txt.';
+  } else {
+    toggleDesc.innerHTML = '📦 <strong>Modo Agrupado:</strong> Mesmo CPF + mesmo Acumulador → os valores serão <strong>somados</strong> em 1 único lançamento.';
+  }
+});
 
 function formatarTamanho(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -622,34 +710,48 @@ function processar(wb) {
 
   if (registros.length === 0) return { erro: 'Nenhum registro válido encontrado após os cabeçalhos.' };
 
-  // Agrupar por CPF+acumulador
-  const grupos = {};
-  const ordemGrupos = [];
-  for (const r of registros) {
-    const chave = r.cpf + '|' + r.acum;
-    if (!grupos[chave]) {
-      grupos[chave] = { cpf: r.cpf, acum: r.acum, valor: 0, base: 0, irrf: 0, aliq: null, nrDoc: '' };
-      ordemGrupos.push(chave);
-    }
-    grupos[chave].valor += r.valor;
-    grupos[chave].base  += r.base;
-    grupos[chave].irrf  += r.irrf;
-    if (r.aliq !== null && grupos[chave].aliq === null) grupos[chave].aliq = r.aliq;
-    if (r.nrDoc && !grupos[chave].nrDoc) grupos[chave].nrDoc = r.nrDoc;
-  }
+  const modoSeparado = toggleModo.checked;
 
-  ordemGrupos.sort((a, b) => {
-    const ga = grupos[a], gb = grupos[b];
-    if (ga.cpf !== gb.cpf) return ga.cpf.localeCompare(gb.cpf);
-    return parseInt(ga.acum) - parseInt(gb.acum);
-  });
+  let itensFinais;
+
+  if (modoSeparado) {
+    // Modo separado: cada registro é um lançamento individual
+    itensFinais = registros.map(r => ({ ...r }));
+    itensFinais.sort((a, b) => {
+      if (a.cpf !== b.cpf) return a.cpf.localeCompare(b.cpf);
+      return parseInt(a.acum) - parseInt(b.acum);
+    });
+  } else {
+    // Modo agrupado: agrupar por CPF+acumulador
+    const grupos = {};
+    const ordemGrupos = [];
+    for (const r of registros) {
+      const chave = r.cpf + '|' + r.acum;
+      if (!grupos[chave]) {
+        grupos[chave] = { cpf: r.cpf, acum: r.acum, valor: 0, base: 0, irrf: 0, aliq: null, nrDoc: '' };
+        ordemGrupos.push(chave);
+      }
+      grupos[chave].valor += r.valor;
+      grupos[chave].base  += r.base;
+      grupos[chave].irrf  += r.irrf;
+      if (r.aliq !== null && grupos[chave].aliq === null) grupos[chave].aliq = r.aliq;
+      if (r.nrDoc && !grupos[chave].nrDoc) grupos[chave].nrDoc = r.nrDoc;
+    }
+
+    ordemGrupos.sort((a, b) => {
+      const ga = grupos[a], gb = grupos[b];
+      if (ga.cpf !== gb.cpf) return ga.cpf.localeCompare(gb.cpf);
+      return parseInt(ga.acum) - parseInt(gb.acum);
+    });
+
+    itensFinais = ordemGrupos.map(chave => grupos[chave]);
+  }
 
   const contadorCpf = {};
   const linhas = [];
   const resumo = [];
 
-  for (const chave of ordemGrupos) {
-    const g = grupos[chave];
+  for (const g of itensFinais) {
     const n = contadorCpf[g.cpf] || 0;
     contadorCpf[g.cpf] = n + 1;
 
@@ -684,8 +786,8 @@ function processar(wb) {
 }
 
 function badgeAcum(acum) {
-  const mapa = { '800': 'Imóvel', '801': 'Veículo', '802': 'Máquina' };
-  const cls  = ['800','801','802'].includes(acum) ? `badge-${acum}` : 'badge-800';
+  const mapa = { '800': 'Imóvel', '801': 'Veículo' };
+  const cls  = ['800','801'].includes(acum) ? `badge-${acum}` : 'badge-800';
   return `<span class="badge-acum ${cls}">${acum} — ${mapa[acum] || acum}</span>`;
 }
 
