@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Retenção sobre Aluguel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --azul: #2E75B6;
+    --azul-escuro: #1F3864;
+    --azul-claro: #EBF3FB;
+    --verde: #70AD47;
+    --verde-claro: #E2EFDA;
+    --cinza: #F5F5F5;
+    --cinza-borda: #D9D9D9;
+    --texto: #1a1a1a;
+    --texto-muted: #666;
+    --branco: #ffffff;
+    --erro: #C00000;
+    --erro-bg: #FCE4D6;
+    --sucesso: #375623;
+    --sucesso-bg: #E2EFDA;
+    --sombra: 0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: #f0f2f5;
+    color: var(--texto);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  .topo {
+    background: var(--azul-escuro);
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topo-icone {
+    width: 40px; height: 40px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .topo h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .topo p { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .card {
+    background: var(--branco);
+    border-radius: 12px;
+    border: 1px solid var(--cinza-borda);
+    box-shadow: var(--sombra);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--cinza-borda);
+    background: var(--cinza);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-header .num {
+    width: 24px; height: 24px;
+    background: var(--azul);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-header h2 { font-size: 14px; font-weight: 600; color: var(--azul-escuro); }
+  .card-body { padding: 20px; }
+
+  /* Drop zone */
+  .dropzone {
+    border: 2px dashed var(--cinza-borda);
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: #fafafa;
+    position: relative;
+  }
+  .dropzone:hover, .dropzone.over {
+    border-color: var(--azul);
+    background: var(--azul-claro);
+  }
+  .dropzone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .dropzone-icone { font-size: 36px; margin-bottom: 10px; opacity: 0.5; }
+  .dropzone p { font-size: 14px; color: var(--texto-muted); }
+  .dropzone strong { color: var(--azul); }
+  .dropzone .formatos { font-size: 12px; color: #aaa; margin-top: 6px; }
+
+  .arquivo-selecionado {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--azul-claro);
+    border: 1px solid #B5D4F4;
+    border-radius: 8px;
+    margin-top: 14px;
+  }
+  .arquivo-selecionado .icone-xls {
+    width: 36px; height: 36px;
+    background: var(--verde);
+    color: white;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    flex-shrink: 0;
+  }
+  .arquivo-selecionado .info { flex: 1; min-width: 0; }
+  .arquivo-selecionado .nome { font-size: 13px; font-weight: 500; truncate; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .arquivo-selecionado .tamanho { font-size: 11px; color: var(--texto-muted); }
+  .arquivo-selecionado .remover {
+    background: none; border: none; cursor: pointer;
+    color: var(--texto-muted); font-size: 18px; line-height: 1;
+    padding: 4px; border-radius: 4px;
+  }
+  .arquivo-selecionado .remover:hover { color: var(--erro); background: var(--erro-bg); }
+
+  /* Botão processar */
+  .btn-processar {
+    width: 100%;
+    padding: 14px;
+    background: var(--azul-escuro);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'IBM Plex Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .btn-processar:hover:not(:disabled) { background: var(--azul); }
+  .btn-processar:active:not(:disabled) { transform: scale(0.99); }
+  .btn-processar:disabled { opacity: 0.4; cursor: not-allowed; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Alertas */
+  .alerta {
+    display: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 14px;
+    line-height: 1.5;
+  }
+  .alerta.erro { background: var(--erro-bg); border: 1px solid #F4B8A0; color: var(--erro); }
+  .alerta.info { background: var(--azul-claro); border: 1px solid #B5D4F4; color: #0C447C; }
+
+  /* Resultado */
+  #resultado { display: none; }
+
+  .resumo-header {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .metric {
+    background: var(--cinza);
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--cinza-borda);
+  }
+  .metric .label { font-size: 11px; color: var(--texto-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .metric .valor { font-size: 22px; font-weight: 600; color: var(--azul-escuro); font-family: 'IBM Plex Mono', monospace; }
+  .metric .sub { font-size: 12px; color: var(--texto-muted); margin-top: 2px; }
+
+  .badge-acum {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .badge-800 { background: #D6E4F7; color: #185FA5; }
+  .badge-801 { background: var(--verde-claro); color: #375623; }
+  .badge-802 { background: #FFF2CC; color: #7F6000; }
+
+  table.tabela-resultado {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  table.tabela-resultado th {
+    background: var(--azul-escuro);
+    color: white;
+    padding: 9px 10px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  table.tabela-resultado td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--cinza-borda);
+    vertical-align: middle;
+  }
+  table.tabela-resultado tr:last-child td { border-bottom: none; }
+  table.tabela-resultado tr:nth-child(even) td { background: #fafafa; }
+  table.tabela-resultado .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  .txt-preview {
+    background: #1e1e2e;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #cdd6f4;
+    overflow-x: auto;
+    line-height: 1.8;
+    white-space: pre;
+  }
+  .txt-preview .campo { color: #89dceb; }
+
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--verde);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'IBM Plex Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-decoration: none;
+  }
+  .btn-download:hover { background: #4e7c32; }
+
+  .btn-novo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: white;
+    color: var(--azul-escuro);
+    border: 1px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'IBM Plex Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-novo:hover { background: var(--cinza); }
+
+  .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .tag-empresa {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--azul-claro);
+    border: 1px solid #B5D4F4;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #0C447C;
+    margin-bottom: 16px;
+  }
+  .tag-empresa strong { font-weight: 600; }
+
+  .instrucoes {
+    background: #fffbe6;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #6d4c00;
+    line-height: 1.6;
+  }
+  .instrucoes ul { padding-left: 18px; margin-top: 6px; }
+  .instrucoes li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="topo-icone">📄</div>
+  <div>
+    <h1>Gerador de Retenção sobre Aluguel</h1>
+    <p>Converte a planilha de controle no arquivo .txt para importação no sistema</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="card" id="card-upload">
+    <div class="card-header">
+      <div class="num">1</div>
+      <h2>Selecione a planilha de controle (.xlsx)</h2>
+    </div>
+    <div class="card-body">
+      <div class="instrucoes" style="margin-bottom:16px;">
+        <strong>Requisitos da planilha:</strong>
+        <ul>
+          <li>Deve ter uma aba chamada <strong>DADOS</strong></li>
+          <li>Bloco superior com Razão Social, CNPJ, Mês e Ano de referência</li>
+          <li>Cabeçalhos: CPF, Nome do Locador, Tipo de Bem, Acumulador, Valor do Bem, Base Cálculo IRRF, Alíquota IRRF, Valor IRRF</li>
+        </ul>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="arquivo-input" accept=".xlsx,.xls" />
+        <div class="dropzone-icone">📊</div>
+        <p>Arraste o arquivo aqui ou <strong>clique para selecionar</strong></p>
+        <div class="formatos">Formatos aceitos: .xlsx, .xls</div>
+      </div>
+
+      <div class="arquivo-selecionado" id="arquivo-info">
+        <div class="icone-xls">XLS</div>
+        <div class="info">
+          <div class="nome" id="arquivo-nome"></div>
+          <div class="tamanho" id="arquivo-tamanho"></div>
+        </div>
+        <button class="remover" id="remover-arquivo" title="Remover arquivo">✕</button>
+      </div>
+
+      <div class="alerta erro" id="alerta-erro"></div>
+      <div class="alerta info" id="alerta-info"></div>
+    </div>
+  </div>
+
+  <div class="card" id="card-processar">
+    <div class="card-header">
+      <div class="num">2</div>
+      <h2>Processar e gerar arquivo .txt</h2>
+    </div>
+    <div class="card-body">
+      <button class="btn-processar" id="btn-processar" disabled>
+        <div class="spinner" id="spinner"></div>
+        <span id="btn-texto">⚙ Selecione uma planilha para processar</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="resultado">
+    <div class="card">
+      <div class="card-header">
+        <div class="num">3</div>
+        <h2>Resultado</h2>
+      </div>
+      <div class="card-body">
+
+        <div class="tag-empresa" id="tag-empresa"></div>
+
+        <div class="resumo-header" id="metricas"></div>
+
+        <h3 style="font-size:13px; font-weight:600; color:var(--azul-escuro); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.3px;">Lançamentos gerados</h3>
+        <div style="overflow-x:auto; border:1px solid var(--cinza-borda); border-radius:8px; margin-bottom:20px;">
+          <table class="tabela-resultado" id="tabela-resultado"></table>
+        </div>
+
+        <h3 style="font-size:13px; font-weight:600; color:var(--azul-escuro); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.3px;">Prévia do arquivo .txt</h3>
+        <div class="txt-preview" id="txt-preview"></div>
+
+        <div class="acoes" style="margin-top:20px;" id="acoes-resultado"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const dropzone = document.getElementById('dropzone');
+const arquivoInput = document.getElementById('arquivo-input');
+const arquivoInfo = document.getElementById('arquivo-info');
+const arquivoNome = document.getElementById('arquivo-nome');
+const arquivoTamanho = document.getElementById('arquivo-tamanho');
+const removerArquivo = document.getElementById('remover-arquivo');
+const btnProcessar = document.getElementById('btn-processar');
+const btnTexto = document.getElementById('btn-texto');
+const spinner = document.getElementById('spinner');
+const alertaErro = document.getElementById('alerta-erro');
+const alertaInfo = document.getElementById('alerta-info');
+const resultado = document.getElementById('resultado');
+
+let arquivoAtual = null;
+
+function formatarTamanho(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function mostrarErro(msg) {
+  alertaErro.textContent = msg;
+  alertaErro.style.display = 'block';
+  alertaInfo.style.display = 'none';
+}
+
+function mostrarInfo(msg) {
+  alertaInfo.textContent = msg;
+  alertaInfo.style.display = 'block';
+  alertaErro.style.display = 'none';
+}
+
+function limparAlertas() {
+  alertaErro.style.display = 'none';
+  alertaInfo.style.display = 'none';
+}
+
+function selecionarArquivo(file) {
+  if (!file) return;
+  if (!file.name.match(/\.(xlsx|xls)$/i)) {
+    mostrarErro('Formato inválido. Use apenas arquivos .xlsx ou .xls');
+    return;
+  }
+  arquivoAtual = file;
+  arquivoNome.textContent = file.name;
+  arquivoTamanho.textContent = formatarTamanho(file.size);
+  arquivoInfo.style.display = 'flex';
+  dropzone.style.display = 'none';
+  btnProcessar.disabled = false;
+  btnTexto.textContent = '⚙  Gerar arquivo .txt';
+  limparAlertas();
+  resultado.style.display = 'none';
+}
+
+arquivoInput.addEventListener('change', e => selecionarArquivo(e.target.files[0]));
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('over');
+  selecionarArquivo(e.dataTransfer.files[0]);
+});
+
+removerArquivo.addEventListener('click', () => {
+  arquivoAtual = null;
+  arquivoInfo.style.display = 'none';
+  dropzone.style.display = 'block';
+  btnProcessar.disabled = true;
+  btnTexto.textContent = '⚙  Selecione uma planilha para processar';
+  arquivoInput.value = '';
+  limparAlertas();
+  resultado.style.display = 'none';
+});
+
+btnProcessar.addEventListener('click', () => {
+  if (!arquivoAtual) return;
+  spinner.style.display = 'block';
+  btnProcessar.disabled = true;
+  btnTexto.textContent = 'Processando...';
+  limparAlertas();
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const res = processar(wb);
+      if (res.erro) {
+        mostrarErro('Erro: ' + res.erro);
+      } else {
+        exibirResultado(res);
+      }
+    } catch(err) {
+      mostrarErro('Erro ao ler o arquivo: ' + err.message);
+    }
+    spinner.style.display = 'none';
+    btnProcessar.disabled = false;
+    btnTexto.textContent = '⚙  Gerar arquivo .txt';
+  };
+  reader.readAsArrayBuffer(arquivoAtual);
+});
+
+function ultimoDiaMes(mes, ano) {
+  return new Date(ano, mes, 0).getDate();
+}
+
+function limparCPF(v) {
+  return String(v).replace(/[.\-\/\s]/g, '').split('.')[0].trim();
+}
+
+function toFloat(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  return parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function acharValorBloco(rows, label) {
+  for (const row of rows) {
+    for (let j = 0; j < row.length; j++) {
+      const cell = row[j];
+      if (cell !== null && cell !== undefined && String(cell).toLowerCase().includes(label.toLowerCase())) {
+        for (let k = j + 1; k < row.length; k++) {
+          const v = row[k];
+          if (v !== null && v !== undefined && String(v).trim() !== '') {
+            return typeof v === 'number' ? String(v) : String(v).trim();
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function processar(wb) {
+  const sheetName = wb.SheetNames.find(n => n.trim().toUpperCase() === 'DADOS');
+  if (!sheetName) return { erro: "Aba 'DADOS' não encontrada. Verifique o nome da aba na planilha." };
+
+  const ws = wb.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+
+  const razaoSocial = acharValorBloco(raw, 'Razão Social');
+  const cnpj        = acharValorBloco(raw, 'CNPJ');
+  const mesStr      = acharValorBloco(raw, 'Mês de Referência');
+  const anoStr      = acharValorBloco(raw, 'Ano de Referência');
+
+  if (!razaoSocial || !cnpj || !mesStr || !anoStr)
+    return { erro: 'Campos obrigatórios não encontrados no bloco superior (Razão Social, CNPJ, Mês ou Ano). Verifique a planilha.' };
+
+  const mes = parseInt(mesStr);
+  const ano = parseInt(anoStr);
+  if (isNaN(mes) || isNaN(ano) || mes < 1 || mes > 12)
+    return { erro: `Mês ou Ano inválidos: "${mesStr}", "${anoStr}"` };
+
+  const ultimoDia  = ultimoDiaMes(mes, ano);
+  const dataStr    = `${String(ultimoDia).padStart(2,'0')}/${String(mes).padStart(2,'0')}/${ano}`;
+  const numBase    = `${String(mes).padStart(2,'0')}${ano}`;
+  const cnpjLimpo  = cnpj.replace(/[.\-\/\s]/g, '');
+
+  // Achar linha do cabeçalho
+  let headerIdx = -1;
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] && raw[i].some(c => c && String(c).toLowerCase().includes('cpf'))) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx === -1) return { erro: "Cabeçalho da tabela não encontrado. A linha com 'CPF' não foi localizada." };
+
+  const headers = raw[headerIdx].map(h => h ? String(h).toLowerCase().replace(/\n/g,' ').trim() : '');
+
+  function acharCol(possiveis) {
+    for (const p of possiveis) {
+      const idx = headers.findIndex(h => h.includes(p.toLowerCase()));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  }
+
+  const iCpf   = acharCol(['cpf']);
+  const iAcum  = acharCol(['acumulador']);
+  const iValor = acharCol(['valor do bem']);
+  const iBase  = acharCol(['base']);
+  const iIrrf  = acharCol(['valor irrf']);
+  const iNrDoc = acharCol(['nº documento','n° documento','numero documento']);
+  const iAliq  = acharCol(['alíquota','aliquota']);
+
+  if (iCpf < 0)  return { erro: 'Coluna CPF não encontrada.' };
+  if (iAcum < 0) return { erro: 'Coluna Acumulador não encontrada.' };
+  if (iValor < 0) return { erro: 'Coluna Valor do Bem não encontrada.' };
+  if (iIrrf < 0) return { erro: 'Coluna Valor IRRF não encontrada.' };
+
+  const registros = [];
+  for (let i = headerIdx + 1; i < raw.length; i++) {
+    const row = raw[i];
+    if (!row) continue;
+    const cpf  = row[iCpf];
+    const acum = row[iAcum];
+    if (!cpf || !acum) continue;
+    const cpfLimpo = limparCPF(cpf);
+    if (!cpfLimpo || cpfLimpo.toLowerCase().includes('total') || cpfLimpo.toLowerCase().includes('cpf')) continue;
+    const acumStr = String(acum).split('.')[0].trim();
+    if (!acumStr || acumStr === 'nan') continue;
+
+    const valor = toFloat(row[iValor]);
+    const base  = iBase >= 0 && row[iBase] != null ? toFloat(row[iBase]) : valor;
+    const irrf  = toFloat(row[iIrrf]);
+    const aliqLinha = iAliq >= 0 && row[iAliq] != null && String(row[iAliq]).trim() !== '' ? toFloat(row[iAliq]) : null;
+    const nrDoc = iNrDoc >= 0 && row[iNrDoc] != null && String(row[iNrDoc]).trim() !== '' ? String(row[iNrDoc]).trim() : '';
+
+    registros.push({ cpf: cpfLimpo, acum: acumStr, valor, base, irrf, aliq: aliqLinha, nrDoc });
+  }
+
+  if (registros.length === 0) return { erro: 'Nenhum registro válido encontrado após os cabeçalhos.' };
+
+  // Agrupar por CPF+acumulador
+  const grupos = {};
+  const ordemGrupos = [];
+  for (const r of registros) {
+    const chave = r.cpf + '|' + r.acum;
+    if (!grupos[chave]) {
+      grupos[chave] = { cpf: r.cpf, acum: r.acum, valor: 0, base: 0, irrf: 0, aliq: null, nrDoc: '' };
+      ordemGrupos.push(chave);
+    }
+    grupos[chave].valor += r.valor;
+    grupos[chave].base  += r.base;
+    grupos[chave].irrf  += r.irrf;
+    if (r.aliq !== null && grupos[chave].aliq === null) grupos[chave].aliq = r.aliq;
+    if (r.nrDoc && !grupos[chave].nrDoc) grupos[chave].nrDoc = r.nrDoc;
+  }
+
+  ordemGrupos.sort((a, b) => {
+    const ga = grupos[a], gb = grupos[b];
+    if (ga.cpf !== gb.cpf) return ga.cpf.localeCompare(gb.cpf);
+    return parseInt(ga.acum) - parseInt(gb.acum);
+  });
+
+  const contadorCpf = {};
+  const linhas = [];
+  const resumo = [];
+
+  for (const chave of ordemGrupos) {
+    const g = grupos[chave];
+    const n = contadorCpf[g.cpf] || 0;
+    contadorCpf[g.cpf] = n + 1;
+
+    const nrDoc = g.nrDoc || (n === 0 ? numBase : `${numBase}${n}`);
+    const aliq  = g.aliq !== null ? g.aliq : (g.base > 0 && g.irrf > 0 ? +(g.irrf / g.base * 100).toFixed(4) : 0);
+
+    const fmt = v => v.toFixed(2).replace('.', ',');
+
+    const campos = [
+      g.cpf, '', '', '', '',
+      nrDoc, '1', dataStr, g.acum, '1949',
+      fmt(g.valor), '0', fmt(g.valor),
+      fmt(g.base),
+      String(aliq).replace('.', ','),
+      fmt(g.irrf),
+      '', '', '', '', '', ''
+    ];
+
+    linhas.push(campos.join(';'));
+    resumo.push({ cpf: g.cpf, acum: g.acum, nrDoc, valor: g.valor, base: g.base, aliq, irrf: g.irrf });
+  }
+
+  const totalValor = resumo.reduce((s, r) => s + r.valor, 0);
+  const totalIrrf  = resumo.reduce((s, r) => s + r.irrf, 0);
+
+  return {
+    ok: true, razaoSocial, cnpj, mes, ano, dataStr,
+    nomeArquivo: `RETENCAO_ALUGUEL_${String(mes).padStart(2,'0')}${ano}_${cnpjLimpo}.txt`,
+    conteudoTxt: linhas.join('\n') + '\n',
+    resumo, totalValor, totalIrrf
+  };
+}
+
+function badgeAcum(acum) {
+  const mapa = { '800': 'Imóvel', '801': 'Veículo', '802': 'Máquina' };
+  const cls  = ['800','801','802'].includes(acum) ? `badge-${acum}` : 'badge-800';
+  return `<span class="badge-acum ${cls}">${acum} — ${mapa[acum] || acum}</span>`;
+}
+
+function fmtBRL(v) {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function exibirResultado(res) {
+  resultado.style.display = 'block';
+  resultado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  document.getElementById('tag-empresa').innerHTML =
+    `<span>🏢</span> <strong>${res.razaoSocial}</strong> &nbsp;|&nbsp; CNPJ: ${res.cnpj} &nbsp;|&nbsp; Ref: ${String(res.mes).padStart(2,'0')}/${res.ano} &nbsp;|&nbsp; Vencimento: ${res.dataStr}`;
+
+  document.getElementById('metricas').innerHTML = `
+    <div class="metric">
+      <div class="label">Lançamentos</div>
+      <div class="valor">${res.resumo.length}</div>
+      <div class="sub">linhas no arquivo</div>
+    </div>
+    <div class="metric">
+      <div class="label">Total Aluguel</div>
+      <div class="valor">R$ ${fmtBRL(res.totalValor)}</div>
+      <div class="sub">soma dos valores</div>
+    </div>
+    <div class="metric">
+      <div class="label">Total IRRF</div>
+      <div class="valor">R$ ${fmtBRL(res.totalIrrf)}</div>
+      <div class="sub">retenção total</div>
+    </div>
+  `;
+
+  const tabela = document.getElementById('tabela-resultado');
+  tabela.innerHTML = `
+    <thead><tr>
+      <th>CPF</th><th>Acumulador</th><th>Nº Documento</th>
+      <th>Valor (R$)</th><th>Base IRRF (R$)</th><th>Alíquota</th><th>IRRF (R$)</th>
+    </tr></thead>
+    <tbody>
+      ${res.resumo.map(r => `<tr>
+        <td class="mono">${r.cpf}</td>
+        <td>${badgeAcum(r.acum)}</td>
+        <td class="mono">${r.nrDoc}</td>
+        <td class="mono" style="text-align:right">${fmtBRL(r.valor)}</td>
+        <td class="mono" style="text-align:right">${fmtBRL(r.base)}</td>
+        <td class="mono" style="text-align:right">${r.aliq > 0 ? r.aliq.toFixed(4).replace('.',',') + '%' : '—'}</td>
+        <td class="mono" style="text-align:right">${r.irrf > 0 ? fmtBRL(r.irrf) : '—'}</td>
+      </tr>`).join('')}
+    </tbody>`;
+
+  const preview = res.conteudoTxt.split('\n').filter(l => l.trim()).map(linha => {
+    const campos = linha.split(';');
+    return campos.map((c, i) => {
+      if (i === 0 && c) return `<span class="campo">${c}</span>`;
+      return c || '';
+    }).join(';');
+  }).join('\n');
+
+  document.getElementById('txt-preview').innerHTML = preview;
+
+  const acoes = document.getElementById('acoes-resultado');
+  acoes.innerHTML = '';
+
+  const btnDl = document.createElement('button');
+  btnDl.className = 'btn-download';
+  btnDl.innerHTML = '⬇ Baixar ' + res.nomeArquivo;
+  btnDl.addEventListener('click', () => {
+    const blob = new Blob([res.conteudoTxt], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = res.nomeArquivo; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  const btnNovo = document.createElement('button');
+  btnNovo.className = 'btn-novo';
+  btnNovo.innerHTML = '↩ Processar outra planilha';
+  btnNovo.addEventListener('click', () => {
+    removerArquivo.click();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  acoes.appendChild(btnDl);
+  acoes.appendChild(btnNovo);
+}
+</script>
+</body>
+</html>
